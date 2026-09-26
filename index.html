@@ -32,6 +32,7 @@ body{margin:0;height:100%;background:var(--bg);color:var(--ink);
 canvas{display:block;border-radius:18px;box-shadow:0 10px 30px rgba(180,40,90,.18);touch-action:none;background:#bfe3ff;max-width:100%}
 .controls{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:4px 4px 6px}
 .pad{display:flex;gap:14px}
+.controls,.cbtn{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:none}
 .cbtn{width:76px;height:76px;border-radius:50%;border:none;background:var(--btn);color:var(--rose);font:800 28px 'Baloo 2',system-ui,sans-serif;touch-action:none;box-shadow:0 5px 0 var(--line);cursor:pointer}
 .cbtn.jump{width:120px;border-radius:40px;font-size:20px;background:var(--rose);color:#fff;box-shadow:0 5px 0 var(--rose-dk)}
 .cbtn.on{transform:translateY(4px);box-shadow:0 1px 0 var(--line)}
@@ -72,7 +73,7 @@ button:focus-visible,.upl:focus-within{outline:3px solid var(--gold);outline-off
 <div class="app">
   <div class="hud">
     <span class="lvl" id="lvl">Camino al Sí</span>
-    <span class="pill" id="hc">❤️ 0</span>
+    <span class="pill" id="hc">💍 0</span>
     <span class="pill" id="tr">💥 0</span>
     <button id="snd" aria-label="Sonido">🔊</button>
     <button id="home" aria-label="Menú">🏠</button>
@@ -174,18 +175,18 @@ const LEVELS=[
      enemy:[[31,7],[52,7],[18,10],[28,10],[50,10],[72,10]], flag:75})},
   {name:'El último tramo', sky:['#ffb0a3','#ffe4c2'],
    msg:c=>`Esta vez ${esc(c.boy)} te espera bajo el arco de flores… ¿será lo que tú crees? 💍`,
-   map:build(90,{gaps:[[9,11],[30,32],[56,58],[72,74]],
-     block:[[44,10,2,1],[64,9,1,2]],
-     plat:[[5,8,4],[9,9,2],[12,7,5],[22,9,4],[27,7,4],[30,9,3],[36,9,3],[40,8,5],[45,7,2],[48,6,4],[55,8,5],[68,8,3],[72,9,3],[76,8,4]],
-     heart:[[13,6],[15,6],[28,6],[29,6],[42,7],[49,5],[50,5],[56,7],[58,7],[77,7],[78,7]],
-     spike:[[18,10,2],[36,10,3],[44,9,2],[68,10,2]],
-     enemy:[[6,10],[23,8],[41,7],[22,10],[40,10],[52,10],[66,10],[80,10]], girl:86})}
+   map:build(90,{gaps:[[12,14],[34,36],[58,60]],
+     block:[[46,10,2,1]],
+     plat:[[5,8,4],[10,9,3],[16,7,4],[26,8,4],[33,9,5],[42,8,4],[48,6,4],[56,9,6],[66,8,4],[74,8,4]],
+     heart:[[6,7],[8,7],[17,6],[19,6],[27,7],[29,7],[35,8],[43,7],[49,5],[51,5],[58,8],[60,8],[67,7],[69,7],[75,7],[77,7]],
+     spike:[[22,10,2],[40,10,2],[64,10,2]],
+     enemy:[[8,10],[28,10],[44,7],[52,10],[70,10]], girl:86}), check:38}
 ];
 const DEATH=['¡Por él, otra vez!','Nada te detendrá 💪','El amor no se rinde','¡Arriba, campeona!','Él lo vale ❤️'];
 
 /* ---------- estado ---------- */
 let L,grid,W,p,start,enemies,hearts,flag,him,runner,particles=[];
-let levelIdx=0,totalHearts=0,levelHearts=0,attempts=0,state='menu',frame=0,stT=0,deadMsg='';
+let cp=null,cpFlash=0,levelIdx=0,totalHearts=0,levelHearts=0,attempts=0,state='menu',frame=0,stT=0,deadMsg='';
 const cam={cx:VW/2,cy:VH/2,z:1};
 const keys={left:false,right:false,jump:false,jp:false};
 
@@ -201,13 +202,14 @@ function loadLevel(i){
   }
   runner=flag?{x:flag.x-10,y:flag.y+2,run:false,t:0}:null;
   p={x:start.x,y:start.y,w:20,h:30,vx:0,vy:0,onGround:false,dir:1,coy:0,buf:0,kneel:false,walkT:0};
+  if(cp&&cp.level===i){p.x=cp.x;p.y=cp.y;}
   cam.z=1; cam.cx=clamp(p.x,VW/2,W*T-VW/2); cam.cy=VH/2;
   hud();
 }
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function hud(){
   $('#lvl').textContent=L?`Nivel ${levelIdx+1} · ${L.name}`:'Camino al Sí';
-  $('#hc').textContent='❤️ '+(totalHearts+levelHearts);
+  $('#hc').textContent='💍 '+(totalHearts+levelHearts);
   $('#tr').textContent='💥 '+attempts;
 }
 
@@ -252,7 +254,7 @@ function update(){
       const sx=tx*T+4,sy=ty*T+14; if(p.x<sx+24&&p.x+p.w>sx&&p.y<sy+18&&p.y+p.h>sy)return die();}
     // corazones
     for(const h of hearts)if(!h.taken&&Math.abs(p.x+10-h.x)<18&&Math.abs(p.y+15-h.y)<22){
-      h.taken=true;levelHearts++;sfx.heart();burst(h.x,h.y,['#ff4d7d','#ffb3c7'],8,true);hud();}
+      h.taken=true;levelHearts++;sfx.heart();burst(h.x,h.y,['#ffd34d','#fff3b0','#bfefff'],10);hud();}
   }
   // enemigos
   for(const e of enemies){
@@ -268,6 +270,8 @@ function update(){
     }
   }
   if(runner){if(!runner.run&&p.x+p.w>runner.x-150)runner.run=true;if(runner.run){runner.x+=3.4;runner.t++;}}
+  if(state==='play'&&L.check&&!(cp&&cp.level===levelIdx)&&p.x>L.check*T){cp={level:levelIdx,x:L.check*T+6,y:10*T+2};cpFlash=90;sfx.heart();burst(L.check*T+16,10*T-20,['#ff4d7d','#ffd34d','#fff'],16,true);}
+  if(cpFlash>0)cpFlash--;
   if(state==='play'){
     if(flag&&p.x+p.w>flag.x+8&&p.x<flag.x+24)return clearLevel();
     if(him&&p.x+p.w>him.x-50)return startCut();
@@ -337,6 +341,8 @@ function drawTiles(x0,x1){
 function drawFlag(){ if(!flag)return; const x=flag.x+14,gy=flag.y+T;
   ctx.fillStyle='#e9e2d6';ctx.fillRect(x,gy-96,4,96);ctx.fillStyle='#ffd34d';circle(x+2,gy-98,4);
   const w=Math.sin(frame*.12)*2; heart(x+18,gy-80+w,26,'#ff4d7d');}
+function drawCheck(){ if(!L.check)return; const x=L.check*T+14,gy=11*T,on=cp&&cp.level===levelIdx;
+  ctx.fillStyle='#e9e2d6';ctx.fillRect(x,gy-56,3,56);heart(x+13,gy-46+(on?Math.sin(frame*.12)*2:0),18,on?'#ff4d7d':'#b9aab2');}
 function drawArch(){ if(!him)return; const cx=him.x+10, gy=him.y+30;
   ctx.strokeStyle='#6fb45f';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(cx-34,gy);ctx.lineTo(cx-34,gy-36);ctx.arc(cx,gy-36,34,Math.PI,0);ctx.lineTo(cx+34,gy);ctx.stroke();
   for(let i=0;i<=10;i++){const a=Math.PI+i*Math.PI/10;ctx.fillStyle=i%2?'#ff8fab':'#fff';circle(cx+Math.cos(a)*34,gy-36+Math.sin(a)*34,3.5);}
@@ -371,6 +377,13 @@ function drawPerson(x,y,isGirl,dir,o={}){
   if(isGirl){for(let i=0;i<5;i++){const a=i*Math.PI*2/5;ctx.fillStyle='#fff';circle(cx-dir*9+Math.cos(a)*3.2,hy-9+Math.sin(a)*3.2,2.3);}
     ctx.fillStyle='#ffd34d';circle(cx-dir*9,hy-9,1.8);}
 }
+function ringItem(x,y,seed){
+  ctx.strokeStyle='#b8860b';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y+3,6.5,0,Math.PI*2);ctx.stroke();
+  ctx.strokeStyle='#ffd34d';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(x,y+3,6.5,0,Math.PI*2);ctx.stroke();
+  ctx.fillStyle='#ffd34d';ctx.fillRect(x-3,y-5,6,3);
+  ctx.fillStyle='#bfefff';ctx.beginPath();ctx.moveTo(x,y-13);ctx.lineTo(x+5,y-8);ctx.lineTo(x,y-3);ctx.lineTo(x-5,y-8);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(x,y-13);ctx.lineTo(x+2,y-8);ctx.lineTo(x,y-5);ctx.closePath();ctx.fill();
+  if((frame+seed)%70<25)star(x+6,y-12,2.5+Math.sin(frame*.3)*1.2,frame*.08);}
 function drawRing(x,y){ctx.fillStyle='#c81d4e';rr(x-6,y-1,12,8,2);ctx.fill();ctx.fillStyle='#8f1236';ctx.fillRect(x-6,y-1,12,2);
   ctx.strokeStyle='#ffd34d';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y-5,3.5,0,Math.PI*2);ctx.stroke();
   ctx.fillStyle='#dff6ff';ctx.beginPath();ctx.moveTo(x,y-14);ctx.lineTo(x+3,y-11);ctx.lineTo(x,y-8);ctx.lineTo(x-3,y-11);ctx.fill();
@@ -399,8 +412,8 @@ function draw(){
   drawBg();
   ctx.save();ctx.translate(VW/2,VH/2);ctx.scale(cam.z,cam.z);ctx.translate(-cam.cx,-cam.cy);
   const hw=VW/2/cam.z;drawTiles(Math.floor((cam.cx-hw)/T)-1,Math.ceil((cam.cx+hw)/T)+1);
-  drawFlag();drawArch();
-  for(const h of hearts)if(!h.taken){heart(h.x,h.y+Math.sin(frame*.08+h.x)*3,18,'#ff4d7d');ctx.fillStyle='rgba(255,255,255,.7)';circle(h.x-3,h.y-3+Math.sin(frame*.08+h.x)*3,1.8);}
+  drawFlag();drawCheck();drawArch();
+  for(const h of hearts)if(!h.taken)ringItem(h.x,h.y+Math.sin(frame*.08+h.x)*3,h.x);
   for(const e of enemies)drawDuda(e);
   const ending=state==='cut'||state==='ask'||state==='yes';
   if(him)drawPerson(him.x,him.y,false,-1,{kneel:him.kneel,offer:him.kneel&&ending});
@@ -414,6 +427,7 @@ function draw(){
   for(const q of particles){ctx.globalAlpha=Math.min(1,q.life/20);if(q.heart)heart(q.x,q.y,q.s*2,q.c);else{ctx.fillStyle=q.c;circle(q.x,q.y,q.s);}}
   ctx.globalAlpha=1;ctx.restore();
   if(state==='dead')banner('¡Ay!',deadMsg);
+  if(state==='play'&&cpFlash>0)banner('¡Punto de control!','Si caes, sigues desde aquí');
   if(state==='clear')banner('¡Nivel superado!','Se te escapó… ¡a por él!');
 }
 
@@ -423,9 +437,14 @@ function loop(now){acc+=Math.min(100,now-last);last=now;while(acc>=1000/60){upda
 
 /* ---------- controles ---------- */
 function press(k,v){if(k==='jump'&&v&&!keys.jump)keys.jp=true;keys[k]=v;}
-document.querySelectorAll('.cbtn').forEach(b=>{const k=b.dataset.k;
-  const on=e=>{e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}press(k,true);b.classList.add('on');};
-  const off=()=>{press(k,false);b.classList.remove('on');};
+const ctrl=document.querySelector('.controls'),btns=[...document.querySelectorAll('.cbtn')];
+function syncTouches(e){e.preventDefault();const held=new Set();
+  for(const t of e.touches){const el=document.elementFromPoint(t.clientX,t.clientY);const b=el&&el.closest&&el.closest('.cbtn');if(b)held.add(b.dataset.k);}
+  btns.forEach(b=>{const k=b.dataset.k,v=held.has(k);if(v!==keys[k])press(k,v);b.classList.toggle('on',v);});}
+['touchstart','touchmove','touchend','touchcancel'].forEach(ev=>ctrl.addEventListener(ev,syncTouches,{passive:false}));
+btns.forEach(b=>{const k=b.dataset.k;
+  const on=e=>{if(e.pointerType==='touch')return;e.preventDefault();try{b.setPointerCapture(e.pointerId)}catch(_){}press(k,true);b.classList.add('on');};
+  const off=e=>{if(e&&e.pointerType==='touch')return;press(k,false);b.classList.remove('on');};
   b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);
   b.addEventListener('lostpointercapture',off);b.addEventListener('contextmenu',e=>e.preventDefault());});
 const km={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowUp:'jump',w:'jump',W:'jump',' ':'jump'};
@@ -452,11 +471,11 @@ function showMenu(){stopMusic();state='menu';if(!L)loadLevel(0);showOv(`
   <p class="sub">María José tiene que superar los tres niveles, cueste lo que cueste, para alcanzar a Jona… y que por fin le pida matrimonio.</p>
   <div class="duo">${whoBox('g','María José','👰')}${whoBox('b','Jona','🤵')}</div>
   <button class="big" id="go">Empezar la aventura</button>
-  <p class="hint">Recoge corazones, salta encima de las “dudas” para quitarlas de en medio y cuidado con las espinas.</p>`);
+  <p class="hint">Recoge anillos, salta encima de las “dudas” para quitarlas de en medio y cuidado con las espinas.</p>`);
   refreshPreviews();
   $('#go').onclick=startGame;
 }
-function startGame(){playMusic(BRIDAL,92);attempts=0;totalHearts=0;loadLevel(0);showIntro();}
+function startGame(){cp=null;playMusic(BRIDAL,92);attempts=0;totalHearts=0;loadLevel(0);showIntro();}
 function showIntro(){state='intro';showOv(`
   <span class="tag">Nivel ${levelIdx+1} de ${LEVELS.length}</span>
   <h2>${L.name}</h2>
@@ -478,7 +497,7 @@ function showAsk(){let no=0;showOv(`
   nb.addEventListener('click',e=>{if(no>=3)yes();else e.preventDefault();});}
 function showWin(){showOv(`
   <h1>¡Dijo que sí! 💍</h1>
-  <p>${esc(cfg.girl)} alcanzó a ${esc(cfg.boy)} a toda costa: ${totalHearts} corazones recogidos y ${attempts} ${attempts===1?'caída':'caídas'} por el camino.</p>
+  <p>${esc(cfg.girl)} alcanzó a ${esc(cfg.boy)} a toda costa: ${totalHearts} ${totalHearts===1?'anillo recogido':'anillos recogidos'} y ${attempts} ${attempts===1?'caída':'caídas'} por el camino.</p>
   <div class="row"><button class="big" id="again">Jugar otra vez</button><button class="ghost" id="menu">Volver a la portada</button></div>`,true);
   $('#again').onclick=startGame;$('#menu').onclick=showMenu;}
 $('#home').onclick=showMenu;
